@@ -60,7 +60,7 @@ class AttendanceController extends Controller
         
         
                     if($hours != $workHours){ 
-                        $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours);
+                        $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours , $attendance);
                         $attendance->salaryAction()->create([
                             'employee_id' => $validated['employee_id'],
                             'attendance_id' => $attendance->id,
@@ -139,7 +139,7 @@ class AttendanceController extends Controller
 
 
            if($hours != $workHours){ 
-               $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours);
+               $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours , $attendance);
            
 
            // create salary action
@@ -177,7 +177,7 @@ class AttendanceController extends Controller
         }
     }
 
-    private function getSalaryAction($hours,$empsalary,$workHours){
+    private function getSalaryAction($hours,$empsalary,$workHours , $attendance){
                      $types = '';
                     $rewardHours = 0;
                     $amounts = 0;
@@ -186,12 +186,12 @@ class AttendanceController extends Controller
                     if ($hours > $workHours) {
                         $types = 'bonus';
                         $rewardHours = $hours - $workHours;
-                        $amounts = (($empsalary / 30) / $workHours) * $rewardHours; 
+                        $amounts = $attendance->bonus_value * $rewardHours; 
                         $description = 'Bonus hours added';
                     } elseif ($hours < $workHours && $hours > 0) {
                         $types = 'deduction';
                         $rewardHours = $workHours - $hours;
-                        $amounts = (($empsalary / 22) / $workHours) * $rewardHours; 
+                        $amounts = $attendance->deduction_value * $rewardHours; 
                         $description = 'Deduction hours added';
                     }
 
