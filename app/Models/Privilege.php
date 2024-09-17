@@ -9,7 +9,7 @@ class Privilege extends Model
 {
 
     use HasFactory;
-    protected $table='privilages';
+    protected $table='privileges';
     protected $fillable = [
        'id', 'name', 'description'
     ];

@@ -16,19 +16,24 @@ return new class extends Migration
             $table->unsignedBigInteger('employee_id');
             $table->unsignedBigInteger('weekend_id')->nullable();
             $table->unsignedBigInteger('holiday_id')->nullable();
-            $table->string('status');
+            $table->string('status')->default('none');
             $table->time('check_in');
             $table->time('check_out');
             $table->date('date');
+<<<<<<< HEAD
+            $table->decimal('hours', 5, 2)->default(0);
+=======
             $table->decimal('hours', 5, 2);
             $table->decimal('bonus_value', 8, 2)->nullable();  // Adding bonus value column
             $table->decimal('deduction_value', 8, 2)->nullable();
+>>>>>>> a14bc99f5aa678380a1961ebb5afcf80831a7cc3
 
             $table->foreign('employee_id')->references('id')->on('employees')->onDelete('cascade');
             $table->foreign('weekend_id')->references('id')->on('weekends')->onDelete('set null');
             $table->foreign('holiday_id')->references('id')->on('holidays')->onDelete('set null');
             $table->timestamps();
         });
+        
     }
 
     /**

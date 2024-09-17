@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 use App\Models\attendance;
-
+use App\Models\department;
+use App\Models\employee;
 use App\Models\Holiday;
 use App\Models\weekend;
 use Carbon\Carbon;
@@ -10,30 +11,38 @@ use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use PhpParser\Node\Expr\Cast\String_;
 use PhpParser\Node\Expr\FuncCall;
+
 class AttendanceController extends Controller
 {
+
+
     public function index(){
         $attendanceList=attendance::with('employee.department')->get();
         return response()->json(['data'=>$attendanceList],200);
     }
-    
-    public function store (Request $request){
+
+    public function store(Request $request)
+    {
+        // Validate the request
         $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => 'required|string|exists:employees,id',
             'weekend_id' => 'nullable',
             'holiday_id' => 'nullable',
             'check_in' => 'required|date_format:H:i',
             'check_out' => 'required|date_format:H:i',
             'date' => 'required|date_format:Y-m-d',
         ]);
-        $check_in = Carbon::parse($validated['check_in']);
-        $check_out = Carbon::parse($validated['check_out']);
-        $hours = $check_out->diffInHours($check_in);
-        $status=$this->getStatus($hours);
+    
+        
+            $check_in = Carbon::parse($validated['check_in']);
+            $check_out = Carbon::parse($validated['check_out']);
+            $hours = $check_out->diffInHours($check_in);
+    
+            $status=$this->getStatus($hours);
 
         $validated['weekend_id']= $this->isweekend($validated['date']);
         $validated['holiday_id']= $this->isholiday($validated['date']);
-
+        
             if ($validated['weekend_id']  ) {
             return response()->json([
                 'message'=>'No attendance recorded on weekends.',200
@@ -43,43 +52,47 @@ class AttendanceController extends Controller
                         'message'=>'No attendance recorded on Holidays.',200
                     ]) ; 
                         }
-                        $attendance = Attendance::create([
-                            'employee_id' => $validated['employee_id'],
-                            'weekend_id' => $validated['weekend_id'],
-                            'holiday_id' => $validated['holiday_id'],
-                            'check_in' => $check_in,
-                            'check_out' => $check_out,
-                            'date' => $validated['date'],
-                            'hours' => $hours,
-                            'status' => $status,
-                        ]);
-        
-                        //check hours for salary action
-                    $empsalary = $attendance->employee->salary;
-                    $workHours=8;
-        
-        
-                    if($hours != $workHours){ 
-                        $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours);
-                        $attendance->salaryAction()->create([
-                            'employee_id' => $validated['employee_id'],
-                            'attendance_id' => $attendance->id,
-                            'date' => $validated['date'],
-                            'type' =>$salaryAction['type'] ,
-                            'amount' =>$salaryAction['amounts'] ,
-                            'hours' =>$salaryAction['rewardHours'] ,
-                            'details' =>$salaryAction['description'] ,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);}
-                        return response()->json([
-                            'message' => 'Attendance added successfully',
-                            'attendance' => $attendance,
-                            'hours' => $hours,
-                            'status' => $status,
-                        ], 201);
-                    }
+
+                $attendance = Attendance::create([
+                    'employee_id' => $validated['employee_id'],
+                    'check_in' => $check_in,
+                    'check_out' => $check_out,
+                    'date' => $validated['date'],
+                    'hours' => $hours,
+                    'status' => $status,
+                ]);
                 
+                //check hours for slalry action
+            $empsalary = $attendance->employee->salary;
+            $workHours=8;
+        
+   
+            if($hours != $workHours){ 
+                $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours);
+            
+            
+            // create salary action
+        
+             $attendance->salaryAction()->create([
+            'employee_id' => $validated['employee_id'],
+            'attendance_id' => $attendance->id,
+            'date' => $validated['date'],
+            'type' =>$salaryAction['type'] ,
+            'amount' =>$salaryAction['amounts'] ,
+            'hours' =>$salaryAction['rewardHours'] ,
+            'details' =>$salaryAction['description'] ,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);}
+        // json response
+        return response()->json([
+            'message' => 'Attendance added successfully',
+            'attendance' => $attendance,
+            'hours' => $hours,
+            'status' => $status,
+        ], 201);
+    }
+    
     public function show(attendance $attendance){
         $attendance= attendance::with('employee.department')->find($attendance);
         if(!$attendance){
@@ -92,9 +105,9 @@ class AttendanceController extends Controller
                 'attendance'=>$attendance
             ],
             200);
-
-    }
         
+    }
+
     public function update(Request $request,attendance $attendance){
         $validated=$request->validate([
             'employee_name'=>'required|exists:employees,name',
@@ -103,12 +116,14 @@ class AttendanceController extends Controller
             'check_in'=>'required|date_format:H:i:s',
             'check_out'=>'required|date_format:H:i:s', 
             'date'=>'required|date_format:d-m-Y', 
-
+          
         ]);
 
-        $check_in= Carbon::parse($validated['check_in']);
-        $check_out=Carbon::parse($validated['check_out']);
+        $check_in=new Carbon($validated['check_in']);
+        $check_out=new Carbon($validated['check_out']);
         $hours=$check_out->diffInHours($check_in);
+
+        //check for status
         $status=$this->getStatus($hours);
         $validated['weekend_id']= $this->isweekend($validated['date']);
         $validated['holiday_id']= $this->isholiday($validated['date']);
@@ -122,10 +137,9 @@ class AttendanceController extends Controller
                         'message'=>'No attendance recorded on Holidays.',200
                     ]) ; 
                         }
-
+           
         $attendance->update([
             'employee_id'=>$validated['employee_id'],
-            'salary_action_id'=>$validated['salary_action_id'],
             'weekend_id'=>$validated['weekend_id'],
             'holiday_id'=>$validated['holiday_id'],
             'check_in'=>$check_in,
@@ -134,16 +148,20 @@ class AttendanceController extends Controller
             'hours'=>$hours,
             'status'=>$status,
         ]);
-            $empsalary = $attendance->employee->salary;
+   
+
+
+           //check hours for slalry action
+           $empsalary = $attendance->employee->salary;
            $workHours=8;
-
-
+       
+  
            if($hours != $workHours){ 
                $salaryAction=  $this->getSalaryAction($hours,$empsalary,$workHours);
            
-
+      
            // create salary action
-
+       
             $attendance->salaryAction()->create([
            'employee_id' => $validated['employee_id'],
            'attendance_id' => $attendance->id,
@@ -160,8 +178,21 @@ class AttendanceController extends Controller
            'message' => 'Attendance added successfully',
            'attendance' => $attendance,
            'hours' => $hours,
-           'status' => $status,201 ]);
+           'status' => $status ],201);
+
+
+
     }
+    public function destroy(attendance $attendance){
+        $attendance->delete();
+        return response()->json([
+            'message'=>'attendance deleted successfully'],
+            
+            201);
+        
+
+    }
+
     private function getStatus($hours){
 
         if($hours==0){
@@ -182,7 +213,7 @@ class AttendanceController extends Controller
                     $rewardHours = 0;
                     $amounts = 0;
                     $description = '';
-
+                
                     if ($hours > $workHours) {
                         $types = 'bonus';
                         $rewardHours = $hours - $workHours;
@@ -208,41 +239,12 @@ class AttendanceController extends Controller
         $dayOfWeek = Carbon::parse($date)->format('l'); 
         $weekend = weekend::where('name',$dayOfWeek)->first();     
             return $weekend ? $weekend->id : null;
-
+          
     }
     private Function isholiday  ($date){
         $dayOfWeek = Carbon::parse($date)->format('l'); 
         $holiday = Holiday::where('holiday_date',$date)->first();     
            return $holiday ?$holiday->id :null;
-
+          
     }
-
-    public function destroy(Request $request,attendance $attendance){
-        $attendance->delete();
-        return response()->json([
-            'message'=>'attendance deleted successfully'],
-            201);
-        
-
-    }
-    public function saveAttendance(Request $request)
-    {
-        $validated = $request->validate([
-            'bonus' => 'required|numeric',
-            'deduction' => 'required|numeric',
-            'weekendDay1' => 'required|string',
-            'weekendDay2' => 'required|string',
-        ]);
-
-        $attendance = Attendance::first(); 
-        $attendance->bonus_value = $validated['bonus'];
-        $attendance->deduction_value = $validated['deduction'];
-        $attendance->save();
-
-        Weekend::create(['day' => $validated['weekendDay1']]);
-        Weekend::create(['day' => $validated['weekendDay2']]);
-
-        return response()->json(['message' => 'Attendance data saved successfully']);
-    }
-
 }

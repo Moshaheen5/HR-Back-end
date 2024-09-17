@@ -9,14 +9,14 @@ class DepartmentController extends Controller
 {
     public function index(){
         $departments=department::get();
-        return response()->json(['departments'=>$departments]);
+        return response()->json(['data'=>$departments]);
     }
-
+   
      public function store(Request $request){
         $department= $request->validate([
             'department_name'=>'required|string|max:255'
         ]);
-
+   
         department::create($request->all());
         return response()->json([
             'message' => 'department added successfully',
@@ -24,7 +24,7 @@ class DepartmentController extends Controller
             );
     }
     public function show(department $department){
-
+     
         $department=department::find($department);
         return response()->json(['department'=>$department]);
     }
@@ -33,7 +33,7 @@ class DepartmentController extends Controller
         $request->validate([
             'department_name'=>'required|string|max:255'
         ]);
-
+   
         $department->update($request->all());
         return response()->json([
             'message' => 'department updated successfully',
@@ -46,6 +46,6 @@ class DepartmentController extends Controller
             'message'=>'department deleted successfully',
             'recently deleted'=>$department
         ],201);
-
+    
      }
 }
